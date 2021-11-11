@@ -124,7 +124,7 @@ annoying2
 ?tibble::enframe
 #enframe() converts named atomic vectors or lists to one- or two-column data frames. For a list, the result will be a nested tibble with a column of type list. For unnamed vectors, the natural sequence is used as name column.
 #deframe() converts two-column data frames to a named vector or list, using the first column as name and the second column as value. If the input has only one column, an unnamed vector is returned.
-enframe(1:3)
+enframe(1:3)locale()
 #makes data into a tibble
 
 #extension random distribution x random distribution, with result plotted against the input. Looks like a butterfly?
@@ -138,7 +138,7 @@ ggplot(data = extension, mapping = aes(x = distribution_1, y = distributionxdist
   geom_point()
 ggplot(data = extension, mapping = aes(x = distributionxdistribution, y = distribution_1)) +
   geom_point()
-
+?
 
 #Chapter 11: Import--------------------
 #Importing CSV data
