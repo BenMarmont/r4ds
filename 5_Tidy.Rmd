@@ -1,0 +1,357 @@
+---
+title: "5_Tidy"
+author: "BM"
+date: "09/11/2021"
+output: html_document
+---
+
+
+```{r, include = FALSE}
+library(tidyverse) 
+options(repos = list(CRAN="http://cran.rstudio.com/"), include = TRUE)
+```
+
+# Overview
+
+Tidy may seem obvious, but it isn't. Hence the whole workshop on it. Especially at DairyNZ, where data tends to be UN-tidy.
+The package mainly utilised here is 'tidyr' in the tidyverse.
+
+Below are the 5 tables downloaded from github
+
+```{r, eval = FALSE}
+download.file("https://raw.githubusercontent.com/markbneal/R_for_Data_Science_Course/master/table1.csv", "data/table1.csv")
+download.file("https://raw.githubusercontent.com/markbneal/R_for_Data_Science_Course/master/table2.csv", "data/table2.csv")
+download.file("https://raw.githubusercontent.com/markbneal/R_for_Data_Science_Course/master/table3.csv", "data/table3.csv")
+download.file("https://raw.githubusercontent.com/markbneal/R_for_Data_Science_Course/master/table4a.csv", "data/table4a.csv")
+download.file("https://raw.githubusercontent.com/markbneal/R_for_Data_Science_Course/master/table4b.csv", "data/table4b.csv")
+```
+
+```{r, include=FALSE}
+table1 <- read_csv("data/table1.csv")
+table2 <- read_csv("data/table2.csv")
+table3 <- read_csv("data/table3.csv")
+table4a <- read_csv("data/table4a.csv")
+table4b <- read_csv("data/table4b.csv")
+```
+
+
+```{r, echo=FALSE}
+table1
+table2
+table3
+table4a
+table4b
+```
+# Workshop content
+
+We prefer tidy data sets, such data sets have the following characteristics:
+Each variable has a column,
+Each observation has a row,
+Each value has its own cell.
+
+## Calculating rate
+
+```{r}
+table1 %>% mutate(rate = cases / population * 10000)
+```
+
+## Counting cases
+
+```{r}
+table1 %>% count(year, wt = cases)
+```
+Where wt refers to frequency weight.
+
+## Visualising changes over time
+
+```{r}
+ggplot(table1, aes(x = year, y = cases)) +
+  geom_line(aes(group = country), colour = "grey50") +
+  geom_point(aes(colour = country))
+```
+
+## Longer
+
+There are three parameters to pivot longer; in table4a, set of column whose names are values(1999,2000), variable to move column values to a year, and the name of the variable to put columns values into (cases).
+```{r, message=FALSE}
+table4a
+tidy4a <- table4a %>% 
+  pivot_longer(c(`1999`, `2000`), 
+               names_to = "year",
+               values_to = "cases")
+
+```
+This pivot longer table is putting each observation in its own row, a criteria of tidy data. This is done above for table4a above and table4b below. They are then saved in a tidy way in the environment.
+Pivot longer and wider are the new tools in the tidyverse, previously there were melt, cast, gather, and spread.
+
+I had some issues when knitting, stopped the download commands from being re-evaluated every time. Further, originally uses read.csv not read_csv which was not good. Causes X to appear in column headers.
+
+```{r, message=FALSE}
+table4b
+tidy4b <- table4b %>% 
+  pivot_longer(c(`1999`, `2000`), 
+               names_to = "year",
+               values_to = "population")
+
+```
+
+They can then be joined together to make a tidy data frame.
+
+```{r}
+tidy4joined <- left_join(tidy4a, tidy4b)
+
+```
+## Wider
+
+Table 2 has observations split over two rows, so we use wider to reformat.
+Two parametres to make tidy; column to take the variable names from (type), and column to take the variables from (count.)
+```{r}
+table2
+tidy2 <- table2 %>% pivot_wider(names_from = type,
+                       values_from = count)
+tidy2
+```
+
+## Exercises 12.3.3
+
+### 1. Why are pivot longer/wider not perfectly symmetrical?
+
+```{r}
+stocks <- tibble(
+  year   = c(2015, 2015, 2016, 2016),
+  half  = c(   1,    2,     1,    2),
+  return = c(1.88, 0.59, 0.92, 0.17))
+
+stocks
+
+stocks %>% 
+  pivot_wider(names_from = year, values_from = return) %>% 
+  pivot_longer(`2015`:`2016`, names_to = "year", values_to = "return")
+```
+So they are not symmetrical because it has change from number to character for the year and thus the order of columns is different.
+
+### 2. Why does this code fail?
+
+There are no backticks in the names, hence the code fails.
+
+### 3. What would happen if you widen this table? Why? How could you add a new column to uniquely identify each value?
+
+```{r}
+people <- tribble(
+  ~name,             ~names,  ~values,
+  #-----------------|--------|------
+  "Phillip Woods",   "age",       45,
+  "Phillip Woods",   "height",   186,
+  "Phillip Woods",   "age",       50,
+  "Jessica Cordero", "age",       37,
+  "Jessica Cordero", "height",   156)
+```
+
+Trying to widen this table will not work as there appears to be two Phillip Woods (two ages). This could be solved with a unique identifier if there are two people, such as a a middle name or number for participants. Or, a time could be added for each observation if it is the same person.
+
+### 4. Tidy the simple tibble below. Do you need to make it wider or longer? What are the variables?
+
+```{r}
+preg <- tribble(
+  ~pregnant, ~male, ~female,
+  "yes",     NA,    10,
+  "no",      20,    12)
+preg
+```
+
+Tidy data sets exhibit the following characteristics; each variable has a column, each observation has a row,each value has its own cell.
+
+Each observation doesn't have its own row. Suggest columns: gender, pregnant, total. Mark attempted it similarly, with non(pregnant) rather than total.
+
+```{r}
+preg_tidy <- preg %>% 
+  pivot_longer(cols = c("male", "female"),
+                      names_to = "gender",
+                      values_to = "values") %>% 
+  pivot_wider(names_from = pregnant,
+              values_from = values)
+preg_tidy
+```
+
+## Separate
+
+```{r}
+table3
+```
+
+This has two variables in one column, ie each observation split over multiple rows, additionally the rate is a character rather than a number.
+
+```{r}
+table3 %>% separate(col = rate, into = c("cases", "population"))
+```
+
+So the separate looks for a non-alphanumeric operator, in this case the '/' and is using that as the separator. Be careful using separate when tidying as sometimes we don't want a period to be separated where in some cases it is a separator, in others it isn't. You can specify the separator with sep = "x", where x is the desired separator.
+
+You can separate many things, in the following code we separate the years into the century and the year.
+
+```{r}
+table5 <- table3 %>% separate(col = year,
+                    into = c("century", "year"),
+                    sep = 2)
+
+table5
+```
+
+## Unite
+
+Now that we have separated the years into century and years we can use 'unite'. However, unite has a default separator of "_", so to get a normal expression of year we specify no separator with "".
+
+```{r}
+table5 %>% unite(col = new, century, year, sep = "")
+```
+
+## Exercises 12.4.3
+
+### 1.What do the extra and fill arguments do in separate()? Experiment with the various options for the following two toy datasets.
+
+```{r}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three"))
+
+tibble(x = c("a,b,c", "d,e", "f,g,i")) %>% 
+  separate(x, c("one", "two", "three"))
+```
+
+The first tibble has an extra data entry in the second column when separated, so 'g' is discarded. This it an extra, or are there missing data in the other two columns?
+
+The second tibble is missing an entry in the second column, so when separated an NA is entered there but how do you know if it is the column 2 or 3 value that is missing and therefore is the NA in the right place?
+
+## Missing values
+There can be explicit or implicit NAs, that is, the former is present in the original data while the latter arises after a transformation.
+
+```{r}
+stocks <- tibble(
+  year   = c(2015, 2015, 2015, 2015, 2016, 2016, 2016),
+  qtr    = c(   1,    2,    3,    4,    2,    3,    4),
+  return = c(1.88, 0.59, 0.35,   NA, 0.92, 0.17, 2.66))
+
+stocks
+```
+The implicit data is the return in 2015. But after a transformation...
+```{r, include=FALSE}
+stocks_wider <- stocks %>% pivot_wider(names_from = year, values_from = return)
+
+stocks_wider
+```
+... We see two NAs in the fourth quarter of 2015, and the first quarter of 2016.
+
+Can solve this with xxx_drop_na
+
+```{r, include=FALSE}
+stocks_wider2 <- stocks %>% pivot_wider(names_from = year, values_from = return) %>% 
+  pivot_longer(
+    cols = c(`2015`, `2016`), 
+    names_to = "year",
+    values_to = "return",
+    values_drop_na = TRUE)
+
+stocks_wider2
+```
+
+But, what if you have a a missing input stemming from data entry where following variables pertain to the last?
+You can use fill to carry the value forward. There are many options within the fill command to change how it operates.
+```{r}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "Derrick Whitmore", 1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "Katherine Burke",  1,           4)
+
+treatment %>% fill(person)
+```
+
+# Case Study
+W.H.O. tuberculosis data set
+```{r}
+who <- who
+```
+
+```{r}
+who1 <- who %>% 
+  pivot_longer(
+  cols = new_sp_m014:newrel_f65,
+  names_to = "key",
+  values_to = "cases",
+  values_drop_na = TRUE)
+
+who1 %>% count(key)
+```
+The key column encodes 4 variables: new/old, type of tb, gender, age group. This is not tidy, but we can fix it!
+
+```{r}
+who2 <- who1 %>% mutate(stringr::str_replace(key, "newrel", "new_rel"))
+```
+
+This fixes the spelling inconsistencies. The following code 
+
+```{r}
+who2 <- who1 %>% mutate(stringr::str_replace(key, "newrel", "new_rel"))
+
+who3 <- who2 %>% 
+  separate(col = key, 
+           into = c("new", "type", "sexage"),
+           sep = "_")
+
+who3 %>% count(new)
+
+who4 <- who3 %>% 
+  select(-new, -iso2, -iso3)
+
+who5 <- who4 %>% 
+  separate(col = sexage,
+           into = c("sex", "age"),
+           sep = 1)
+
+
+```
+
+## Exercises 12.6.1
+### 1. Handling of NAs in this dataset.
+This experiment dropped the NAs early on, without access to the researchers we cannot decide whether they are meant to be zero, or if they are non-zero but missing. The later would be problematic if they were treated as the former, hence they are omitted.
+
+### 2. Neglecting the Mutate step.
+The mutate step made the formatting of the consistent. Without this we wouldn't be able to separate by "_". Hence, was very important. Those not entered correctly would through NAs.
+
+### 3. Handling of the shortened ISO codes
+Here we treated the iso2 and iso3 as unimportant. ISO are standardised abbreviated country names, you could table join to get them back if needed. Or, test via a table of name iso, iso frequency to see that they are consistant and countries don't multiple codes.
+
+### 4. Visualisation of the data
+Not necessarily easy, this is many years of data, for many countries and multiple demographic considerations. We could filter for the most interesting (highest cases). The graph we are targeting is a faceted cases overtime.
+First we sort so that we have a count in descending order to find the ten highest case countries.
+
+
+```{r}
+tb_country_desc <- who5 %>% filter(year == 2013) %>% 
+  count(country, wt = cases) %>% 
+  arrange(desc(n))
+
+top10 <- tb_country_desc$country[1:10]
+
+who5_top_10 <- who5 %>% 
+  filter(country %in% top10) %>% 
+  group_by(country, year, sex) %>% 
+  summarise(sum_cases = sum(cases, na.rm = TRUE))
+
+ggplot(data = who5_top_10)+
+  geom_line(aes(x = year, y = sum_cases, colour = sex))+
+  facet_wrap(~country)
+
+```
+## Non-tidy data
+Sometimes tidy data isn't the answer, such as ease of access, storage or field-specific data conventions.
+
+# Summary of tidy data
+
+Tidy Data:
+
+One observation per row.
+
+One variable per column.
+
+One value per cell.
