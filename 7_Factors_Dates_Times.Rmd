@@ -1,0 +1,196 @@
+---
+title: "7_Factors_Dates_Times"
+author: "BM"
+date: "24/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+gss_cat
+```
+
+# Workshop 7: Factors, Dates and Times 
+This workshop covers chapters 15 and 16 of R4DS (online version.)
+
+In R factors work with categorical variables, that is variables with a known set of possible values. They can also be used to display character vectors in non-alphabetical order.
+
+The cheat sheet for factors is called forcats (anagram of factors)
+
+# Factors
+## Creating factors
+
+```{r}
+x1 <- c("Dec", "Apr", "Jan", "Mar")
+x2 <- c("Dec", "Apr", "Jam", "Mar")
+sort(x1)
+
+month_levels <- c(
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+)
+
+y1 <- factor(x1, levels = month_levels)
+
+sort(y1)
+
+y2 <- factor(x2, levels = month_levels)
+y2
+```
+The levels sets out the order of the factor, without them they will be delivered alphabetically.
+In the above example the  Jam not in the levels was silently converted to an NA. You can check via
+
+```{r}
+y2 <- parse_factor(x2, levels = month_levels)
+
+```
+Which yields the issue. You can also set the levels in order of appearance in the data. In the below example the first sets in the levels first while the latter sets it after.
+```{r}
+f1 <- factor(x1, levels = unique(x1))
+f1
+#> [1] Dec Apr Jan Mar
+#> Levels: Dec Apr Jan Mar
+
+f2 <- x1 %>% factor() %>% fct_inorder()
+f2
+#> [1] Dec Apr Jan Mar
+#> Levels: Dec Apr Jan Mar
+```
+You can find the levels in data with
+```{r}
+levels(f2)
+```
+
+## GSS (General Social Survery)
+```{r}
+gss_cat %>% 
+  count(race)
+
+ggplot(gss_cat, aes(x = race)) +
+  geom_bar()
+ggplot(gss_cat, aes(x = race)) +
+  geom_bar() + 
+  scale_x_discrete(drop = FALSE)
+```
+GGPLOT will drop levels with no data. You can prevent this with scale_x_discrete(drop = false). This shows that there was a NA option that no one selected in the survey.
+
+### Exercises 15.3.1
+#### 1. 
+Report income
+```{r}
+?gss_cat
+ggplot(gss_cat, aes(x = rincome)) + 
+  geom_bar() 
+
+ggplot(gss_cat, aes(x = rincome)) + 
+  geom_bar() +
+  coord_flip()
+  
+  
+```
+This shows the distribution of reported income amongst survey participants. Hard to interpret due to overlapping income values. This could be addressed by a co-ord flip. When flipping the coords I forgot the (), took a while to troubleshoot.
+
+#### 2.
+Most common religion and party affiliation
+```{r}
+ggplot(gss_cat, aes(x = relig)) +
+  geom_bar() + 
+  scale_x_discrete(drop = FALSE) +
+  coord_flip()
+
+ggplot(gss_cat, aes(x = partyid)) +
+  geom_bar() + 
+  scale_x_discrete(drop = FALSE) +
+  coord_flip()
+```
+The most common religion is protestant while the highest reported party identification is Independent
+
+#### 3.
+Exploring religions with denominations. This shows that Protestants have denominations but other religions do. Can also be done visually.
+```{r}
+gss_cat %>% 
+  count(relig, denom) %>% 
+  arrange(desc(n))
+
+```
+### Changing Factor Order
+```{r}
+relig_summary <- gss_cat %>% 
+  group_by(relig) %>% 
+  summarise(
+    age = mean(age, na.rm = TRUE),
+    tvhours = mean(tvhours, na.rm = TRUE),
+    n = n())
+
+ggplot(relig_summary, aes(x = tvhours, y = relig)) +
+  geom_point()
+```
+
+This graph is hard to interpret, no clear pattern. So we reorder
+### fct_reorder
+Needs:factor you want to reorder, x numberic vector as a basis for reordering, optional function (default is median)
+```{r}
+ggplot(relig_summary, aes(x = tvhours, y = fct_reorder(relig, tvhours))) +
+  geom_point()
+```
+
+This shows that Eastern religions tend to watch less tv than Western religions. Keeping in mind that this survey is self reported. Additionally, it may be better to mutate the factor reorder before the ggplot, simplifying the GGPLOT call.
+```{r}
+relig_summary %>% 
+  mutate(relig = fct_reorder(relig, tvhours)) %>% 
+  ggplot(aes(x = tvhours, y = relig)) + 
+  geom_point()
+```
+
+Do older people have more income?
+The following code shows age and income, but just because you can do something, doesn't mean you should. The second graph illstrates a better graphic with less code. 
+```{r}
+rincome_summary <- gss_cat %>% 
+  group_by(rincome) %>% 
+  summarise(
+    age = mean(age, na.rm = TRUE),
+    tvhours = mean(tvhours, na.rm = TRUE),
+    n = n()
+  )
+
+rincome_summary
+
+ggplot(rincome_summary, aes(x = age, y = fct_reorder(rincome, age)))+
+  geom_point()
+
+```
+
+```{r}
+ggplot(rincome_summary, aes(age, rincome)) + 
+  geom_point()
+```
+
+### Re-ordering for line plots
+```{r}
+by_age <- gss_cat %>% 
+  filter(!is.na(age)) %>% 
+  count(age, marital) %>% 
+  group_by(age) %>% 
+  mutate(prop = n / sum(n))
+
+by_age
+
+ggplot(by_age, aes(age, prop, colour = marital)) +
+  geom_line(na.rm = TRUE)
+
+```
+recalling that ! means does not, so those values not = NA. The marital status by colour is hard to read so.
+
+```{r}
+ggplot(by_age, aes(age, prop,
+                   colour = fct_reorder2(marital, age, prop))) +
+  geom_line(na.rm = TRUE) +
+  labs(colour = "Marital", y = "Prop", x = "Age")
+```
+
+So we re-order the colour key to match proportions at top of age range and re-label the axis for clarities sake.
+
+### Re-ordering with bar-plots
+Min:1.00.00
