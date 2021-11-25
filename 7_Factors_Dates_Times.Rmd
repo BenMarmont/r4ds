@@ -23,7 +23,7 @@ The cheat sheet for factors is called forcats (anagram of factors)
 # Factors
 ## Creating factors
 
-```{r}
+```{r, results='hide'}
 x1 <- c("Dec", "Apr", "Jan", "Mar")
 x2 <- c("Dec", "Apr", "Jam", "Mar")
 sort(x1)
@@ -48,16 +48,14 @@ y2 <- parse_factor(x2, levels = month_levels)
 
 ```
 Which yields the issue. You can also set the levels in order of appearance in the data. In the below example the first sets in the levels first while the latter sets it after.
-```{r}
+```{r, results='hide'}
 f1 <- factor(x1, levels = unique(x1))
 f1
-#> [1] Dec Apr Jan Mar
-#> Levels: Dec Apr Jan Mar
+
 
 f2 <- x1 %>% factor() %>% fct_inorder()
 f2
-#> [1] Dec Apr Jan Mar
-#> Levels: Dec Apr Jan Mar
+
 ```
 You can find the levels in data with
 ```{r}
@@ -71,16 +69,18 @@ gss_cat %>%
 
 ggplot(gss_cat, aes(x = race)) +
   geom_bar()
+
 ggplot(gss_cat, aes(x = race)) +
   geom_bar() + 
   scale_x_discrete(drop = FALSE)
 ```
+
 GGPLOT will drop levels with no data. You can prevent this with scale_x_discrete(drop = false). This shows that there was a NA option that no one selected in the survey.
 
 ### Exercises 15.3.1
 #### 1. 
 Report income
-```{r}
+```{r, message=FALSE}
 ?gss_cat
 ggplot(gss_cat, aes(x = rincome)) + 
   geom_bar() 
@@ -91,6 +91,7 @@ ggplot(gss_cat, aes(x = rincome)) +
   
   
 ```
+
 This shows the distribution of reported income amongst survey participants. Hard to interpret due to overlapping income values. This could be addressed by a co-ord flip. When flipping the coords I forgot the (), took a while to troubleshoot.
 
 #### 2.
@@ -106,11 +107,12 @@ ggplot(gss_cat, aes(x = partyid)) +
   scale_x_discrete(drop = FALSE) +
   coord_flip()
 ```
-The most common religion is protestant while the highest reported party identification is Independent
+
+The most common religion is protestant while the highest reported party identification is Independent.
 
 #### 3.
 Exploring religions with denominations. This shows that Protestants have denominations but other religions do. Can also be done visually.
-```{r}
+```{r, results='hide'}
 gss_cat %>% 
   count(relig, denom) %>% 
   arrange(desc(n))
@@ -129,8 +131,11 @@ ggplot(relig_summary, aes(x = tvhours, y = relig)) +
   geom_point()
 ```
 
-This graph is hard to interpret, no clear pattern. So we reorder
+This graph is hard to interpret, no clear pattern. So we reorder.
+
+
 ### fct_reorder
+
 Needs:factor you want to reorder, x numberic vector as a basis for reordering, optional function (default is median)
 ```{r}
 ggplot(relig_summary, aes(x = tvhours, y = fct_reorder(relig, tvhours))) +
@@ -182,6 +187,7 @@ ggplot(by_age, aes(age, prop, colour = marital)) +
   geom_line(na.rm = TRUE)
 
 ```
+
 recalling that ! means does not, so those values not = NA. The marital status by colour is hard to read so.
 
 ```{r}
@@ -215,6 +221,7 @@ ggplot(aes(relig, tvhours)) +
   geom_jitter() +
   coord_flip()
 ```
+
 If we change the mean to median the interpretation of the data is completely different. Can change the religion summary from mean to median to demonstrate this.
 
 #### 2. levels of gss_cat
@@ -235,7 +242,7 @@ gss_cat %>% count(partyid)
 ```
 So we can change this so that it's sensible
 
-```{r}
+```{r, results='hide'}
 gss_cat %>%
   mutate(partyid = fct_recode(partyid,
     "Republican, strong"    = "Strong republican",
@@ -248,7 +255,7 @@ gss_cat %>%
   count(partyid)
 ```
 Then we can lump together the others, you couldn't label these NAs, but you could do this. You can also lump together in a string (shown second code chunk.)
-```{r}
+```{r, results='hide'}
 gss_cat %>%
   mutate(partyid = fct_recode(partyid,
     "Republican, strong"    = "Strong republican",
@@ -307,6 +314,7 @@ party_time <- gss_cat %>%
 ggplot(party_time, aes(x = year, y = prop, colour = partyid)) +
   geom_line()
 ```
+
 ??Why does this only show republicans????
 
 #### 2. Collapsing income into a small set of categories
@@ -352,13 +360,13 @@ ymd_hms("2017-01-31 20:11:59", tz = "Pacific/Auckland")
 ```
 The same quirk of stipulating the order of characters in the string applies here. Can change order of d,m,y and h,m,s (Where h,m,s means Hours, Minutes, Seconds.) Can also stipulate time zones.
 
-```{r}
+```{r, results='hide'}
 flights %>% 
   select(year,month, day, hour, minute) %>% 
   mutate(departure = make_datetime(year, month, day, hour, minute))
 ```
 Recalling the modular decomposition of the weird time recordings in the flights dataset from previous workshops
-```{r}
+```{r, results='hide'}
 make_datetime_100 <- function(year, month, day, time) {
   make_datetime(year, month, day, time %/% 100, time %% 100)
 }
@@ -501,7 +509,7 @@ dweeks(12)
 Lubridate provides periods (human time spans) but don't have a fixed length in seconds.
 
 Lets use periods to fix the flights data set, which was showing some flights going back in time due to being over night flights.
-```{r}
+```{r, results='hide'}
 flights_dt %>% 
   filter(arr_time < dep_time)
 
@@ -552,7 +560,7 @@ There are 593 timezones, they can be found with OlsonNames()
 Time zone is an attribute of the date time, but only controls printing.
 
 These times are the same, can verify by subtracting.
-```{r}
+```{r, results='hide'}
 (x1 <- ymd_hms("2015-06-01 12:00:00", tz = "America/New_York"))
 (x2 <- ymd_hms("2015-06-01 18:00:00", tz = "Europe/Copenhagen"))
 (x3 <- ymd_hms("2015-06-02 04:00:00", tz = "Pacific/Auckland"))
@@ -565,7 +573,7 @@ x4
 
 ```
 You can change the time zone if entered incorrectly in the data via 
-```{r}
+```{r, include=FALSE}
 x4 <- c(x1, x2, x3)
 x4
 x4a <- with_tz(x4, tzone = "Australia/Lord_Howe")
