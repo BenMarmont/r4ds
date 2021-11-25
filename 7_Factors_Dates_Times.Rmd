@@ -438,5 +438,145 @@ mdy(d4)
 mdy(d5)
 ```
 
-The format to use depens on your use case.
+The format to use depends on your use case.
+
+## Date time components
+
+This code shows you calling specific values from the date time
+```{r}
+datetime <- ymd_hms("2016-07-08 12:34:56")
+
+year(datetime)
+month(datetime)
+mday(datetime)
+yday(datetime)
+wday(datetime)
+
+
+```
+yday is days since 1/jan. wday is number day of week.
+can use months as labels, and change if they're abbreviated or not with T/F arguments.
+
+```{r}
+flights_dt %>% 
+  mutate(wday = wday(dep_time, label = TRUE, abbr = FALSE)) %>% 
+  ggplot(aes(x = wday)) + 
+  geom_bar()
+```
+
+## Rounding
+You can round dates three ways:
+-   Floor(down)
+-   Ceiling (up)
+-   Round_date (round to)
+
+## Time spans
+There are three classes
+-   Duration (exact number of seconds)
+-   Periods (human units, i.e. weeks and months)
+-   Intervals (represents start and end point)
+They all have the uses, duration is most accurate, but not useful if trying to cumulate into months.
+
+### Durations
+
+This uses the authors age to illustrate durations of lubridate.
+
+```{r}
+h_age = today() - ymd(19791014)
+h_age
+
+class(h_age)
+
+as.duration(h_age)
+```
+
+You can also could seconds (maths) in various time units
+```{r}
+dseconds(15)
+dhours(23)
+dweeks(12)
+```
+### Periods
+
+Lubridate provides periods (human time spans) but don't have a fixed length in seconds.
+
+Lets use periods to fix the flights data set, which was showing some flights going back in time due to being over night flights.
+```{r}
+flights_dt %>% 
+  filter(arr_time < dep_time)
+
+flights_dt <- flights_dt %>% 
+  mutate(
+    overnight = arr_time < dep_time,
+    arr_time = arr_time + days(1 * overnight),
+    sched_arr_time = sched_arr_time + days(1 * overnight)
+  )
+```
+### Intervals
+
+```{r}
+dyears(1) / ddays(365)
+```
+Quirk of these is not exactly 1 due to the way time is recorded (daylight savings, leap years etc)
+
+If you want a more accurate measurement, you’ll have to use an interval. An interval is a duration with a starting point: that makes it precise so you can determine exactly how long it is:
+
+### Summary
+
+If you are getting errors after trying to maniuplate time, perhaps you have specified something correctly.
+
+### Exercises 16.4.5
+
+#### 1. Why is there months() but not dmonths()
+Not every month has the same number of days, and thus seconds.
+
+#### 2. Explain (overnight * 1)
+We created a binary (0,1) variable for flights that occur overnight. When true = 1, which can be used to manipulate time to account for overnight flights.
+
+#### 3.
+Creating a vector of dates for every first day of the month in 2015 (in a code efficient way)
+
+```{r}
+ymd("2015-01-01") + months(0:11)
+```
+
+## Time Zones
+
+R can use consistent time zones from IANA in the format "Continent/City"
+
+Can check your current time zone in R.
+```{r}
+Sys.timezone()
+```
+There are 593 timezones, they can be found with OlsonNames()
+Time zone is an attribute of the date time, but only controls printing.
+
+These times are the same, can verify by subtracting.
+```{r}
+(x1 <- ymd_hms("2015-06-01 12:00:00", tz = "America/New_York"))
+(x2 <- ymd_hms("2015-06-01 18:00:00", tz = "Europe/Copenhagen"))
+(x3 <- ymd_hms("2015-06-02 04:00:00", tz = "Pacific/Auckland"))
+
+x1-x2
+x2-x3
+
+x4 <- c(x1, x2, x3)
+x4
+
+```
+You can change the time zone if entered incorrectly in the data via 
+```{r}
+x4 <- c(x1, x2, x3)
+x4
+x4a <- with_tz(x4, tzone = "Australia/Lord_Howe")
+x4a
+x4a - x4
+
+x4b <- force_tz(x4, tzone = "Australia/Lord_Howe")
+x4b
+x4b <- force_tz(x4, tzone = "Australia/Lord_Howe")
+x4b
+
+x4a-x4b
+```
 
