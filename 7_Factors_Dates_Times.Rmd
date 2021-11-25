@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(nycflights13)
 gss_cat
+library(lubridate)
 ```
 
 # Workshop 7: Factors, Dates and Times 
@@ -193,4 +194,249 @@ ggplot(by_age, aes(age, prop,
 So we re-order the colour key to match proportions at top of age range and re-label the axis for clarities sake.
 
 ### Re-ordering with bar-plots
-Min:1.00.00
+```{r}
+gss_cat %>%
+  mutate(marital = marital %>% fct_infreq() %>% fct_rev()) %>%
+  ggplot(aes(marital)) +
+    geom_bar()
+```
+
+
+### Exercises 15.4.1
+#### 1. TV hours
+```{r}
+gss_cat %>% 
+ggplot(aes(relig, tvhours)) +
+  geom_boxplot() +
+  coord_flip()
+
+gss_cat %>% 
+ggplot(aes(relig, tvhours)) +
+  geom_jitter() +
+  coord_flip()
+```
+If we change the mean to median the interpretation of the data is completely different. Can change the religion summary from mean to median to demonstrate this.
+
+#### 2. levels of gss_cat
+Examining the levels i.e. arbitrary or principled in this data set.
+
+```{r}
+levels(gss_cat$rincome)
+levels(gss_cat$marital)
+```
+So the reported income is ordered logically, but the martial status could be ordered in many ways.
+
+## Modifying Factor Levels
+The most powerful tool for this is fct_recode. 
+Allows to clarify labels, collapse levels i.e. income in gss
+
+```{r}
+gss_cat %>% count(partyid)
+```
+So we can change this so that it's sensible
+
+```{r}
+gss_cat %>%
+  mutate(partyid = fct_recode(partyid,
+    "Republican, strong"    = "Strong republican",
+    "Republican, weak"      = "Not str republican",
+    "Independent, near rep" = "Ind,near rep",
+    "Independent, near dem" = "Ind,near dem",
+    "Democrat, weak"        = "Not str democrat",
+    "Democrat, strong"      = "Strong democrat"
+  )) %>%
+  count(partyid)
+```
+Then we can lump together the others, you couldn't label these NAs, but you could do this. You can also lump together in a string (shown second code chunk.)
+```{r}
+gss_cat %>%
+  mutate(partyid = fct_recode(partyid,
+    "Republican, strong"    = "Strong republican",
+    "Republican, weak"      = "Not str republican",
+    "Independent, near rep" = "Ind,near rep",
+    "Independent, near dem" = "Ind,near dem",
+    "Democrat, weak"        = "Not str democrat",
+    "Democrat, strong"      = "Strong democrat",
+    "Other"                 = "No answer",
+    "Other"                 = "Don't know",
+    "Other"                 = "Other party"
+  )) %>%
+  count(partyid)
+
+gss_cat %>%
+  mutate(partyid = fct_collapse(partyid,
+    other = c("No answer", "Don't know", "Other party"),
+    rep = c("Strong republican", "Not str republican"),
+    ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+    dem = c("Not str democrat", "Strong democrat")
+  )) %>%
+  count(partyid)
+```
+
+### Lumping together small groups
+```{r}
+gss_cat %>% 
+  mutate(relig = fct_lump(relig)) %>% 
+  count(relig)
+```
+This works by lumping together the smallest groups until the aggregate is still the smallest group. In thise case it has lumped too many categories together. You can set the number of lumped categories as below, which works better in this case.
+
+```{r}
+gss_cat %>% 
+  mutate(relig = fct_lump(relig, n = 5)) %>% 
+  count(relig)
+  
+```
+
+### Exercises 15.5.1
+#### 1. 
+To map proportions of partyid over time, put time on the x axis and collapsed as a proportion on the y axis.
+
+```{r}
+party_time <- gss_cat %>%
+  group_by(year) %>% 
+  mutate(partyid = fct_collapse(partyid,
+    other = c("No answer", "Don't know", "Other party"),
+    rep = c("Strong republican", "Not str republican"),
+    ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+    dem = c("Not str democrat", "Strong democrat")
+  )) %>%
+  count(partyid) %>% 
+  mutate(prop = n() / sum(n))
+
+ggplot(party_time, aes(x = year, y = prop, colour = partyid)) +
+  geom_line()
+```
+??Why does this only show republicans????
+
+#### 2. Collapsing income into a small set of categories
+Could either roll the little ones with lump, or use collapse to decrease the size of the levels. I would suggest widening each reported income bracket.
+
+# Dates and Times
+Dates and times aren't easy.
+Not all days have 24 hours. Not all years have 365 days. Not all months have the same days.
+We use lubridate here.
+
+There are three types of date time data:
+  - Date
+  - Time
+  - Date-Time
+  
+There is a package called HMS for just times.
+
+You should always use the simplest package to meet your needs, if you only need dates, don't worry about times.
+
+You can find the date and time with.
+```{r}
+today()
+now()
+```
+Three ways to create a date time
+  -String
+  -From individual components
+  -From existing date/time
+  
+## From strings
+```{r}
+ymd("2017-01-31")
+mdy("January 31st, 2017")
+ymd(20170131)
+```
+This shows that we are getting the date from 3 difference strings. When parsing the string like above you are stipulating where the y, m, and d is in the string. Meaning that date recording format i.e. American v rest of the world doesn't matter so much.
+
+Dates times:
+
+```{r}
+ymd_hms("2017-01-31 20:11:59")
+ymd_hms("2017-01-31 20:11:59", tz = "Pacific/Auckland")
+```
+The same quirk of stipulating the order of characters in the string applies here. Can change order of d,m,y and h,m,s (Where h,m,s means Hours, Minutes, Seconds.) Can also stipulate time zones.
+
+```{r}
+flights %>% 
+  select(year,month, day, hour, minute) %>% 
+  mutate(departure = make_datetime(year, month, day, hour, minute))
+```
+Recalling the modular decomposition of the weird time recordings in the flights dataset from previous workshops
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>% 
+  filter(!is.na(dep_time), !is.na(arr_time)) %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>% 
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+
+flights_dt
+```
+In this code we create a function, something we haven't covered yet. but we have covered the use of modular maths to decompose the hour and mins storage in this case.
+
+This can be visualised. Can comment in code chunks with #
+The below visulatisation shows the flights per day over time.
+
+```{r}
+flights_dt %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 86400) # 86400 seconds = 1 day
+```
+
+Flights within a day:
+
+```{r}
+flights_dt %>%
+  filter(dep_time < ymd(20130102)) %>% 
+  ggplot(aes(dep_time)) +
+  geom_freqpoly(binwidth = (10*60)) #this is the binwidth for 10 minutes in seconds
+  
+```
+
+as_datetime allows you to switch from date to datetime
+```{r}
+today()
+as_datetime(today())
+```
+can also go backwards with as_date
+```{r}
+now()
+as_date(now())
+```
+### Exercises  16.2.4
+#### 1. Parsing string with invalid dates
+```{r}
+ymd(c("2010-10-10", "bananas"))
+```
+Causes a failure to parse.
+
+#### 2. What does the tzone argument do to today()? Why is it important?
+```{r}
+?today()
+```
+
+tzone	
+a character vector specifying which time zone you would like the current time in. tzone defaults to your computer's system timezone. You can retrieve the current time in the Universal Coordinated Time (UTC) with now("UTC").
+
+This means that using today() and now() could be problematic if working with people in different time zones as it relies on the time zone of the local computer.
+
+#### 3. Parsing the following date time strings
+```{r}
+d1 <- "January 1, 2010"
+d2 <- "2015-Mar-07"
+d3 <- "06-Jun-2017"
+d4 <- c("August 19 (2015)", "July 1 (2015)")
+d5 <- "12/30/14" # Dec 30, 2014
+
+mdy(d1)
+ymd(d2)
+dmy(d3)
+mdy(d4)
+mdy(d5)
+```
+
+The format to use depens on your use case.
+
