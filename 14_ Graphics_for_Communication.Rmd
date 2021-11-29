@@ -1,0 +1,178 @@
+---
+title: "14_Graphics_for_Communication"
+author: "BM"
+date: "29/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+#install.packages("ggrepel")
+library(ggrepel)
+#install.packages("viridis")
+library(viridis)
+
+
+
+
+```
+
+# Workshop 14: Graphics for Presentation
+
+Using ggplot2, ggrepel and viridis packages this chapter will demonstrate how to generate visualtions suitable for publication. That is, graphs prettier than the abominations made in the first chapters. This process can be thought of as changing graphs from exploratory to expository.
+
+## Labels
+
+The first step of making a good graph is to ensure it has appropriate labels (axis and title) - I can hear my high school teachers now drilling this point home.  
+
+Titles should inform the viewer about the finding of the plot, not what the plot is doing, i.e. x vs y. If you need more text use a title and caption. Can use argument? to find out more about them. The following graph illustrates the difference in graph quality with and without detailed labels.
+
+```{r Labels}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE)
+
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Fuel Efficiency Generally Decreases With Engine Size", 
+       subtitle = "Two seaters (sports cars) are an exception due to their weight",
+       caption = "Data source is fuel economy.gov",
+       x = "Engine displacement (L)",
+       y = "Highway fuel economy (mpg)",
+       colour = "Car Type")
+
+
+```
+
+Beautiful!  
+
+You can also use scientific notation in graph labels, i.e. x or y might represent an equation which could be appropriate titles. This is described by 'plotmath?'.
+
+### Exercises 28.2.1
+#### 1.
+A LOVELY graph (with labels)
+
+```{r Own Graph}
+?mpg
+ggplot(mpg, aes(x = cty, y = trans)) +
+  geom_boxplot() +
+  labs(title = "Manual transmission vehicles tend to be more \nefficient that automatic transmissions \nin city driving conditions",
+      subtitle = "Continuous Variable Transmissions (AV) are the exception.",
+      x = "City milage (mpg)",
+      y = "Transmission type (gears)")
+
+```
+
+#### 2.
+A graph for mileage of cars is skewed upwards for hwy. This could be explained by the inclusion of sports cars. This could be addressed by excluding said cars from the trendline. From there the sports car trendline can either be included, or not.
+
+## Annotations
+### Annonting a graph
+Essentially geom_text(), with labels. Where the labels come from a tibble, or XXX
+
+Finding the best in class (mpg data set). To do this we filter the data to find the top row of descending ranked mpg for each class. This yields are horrible looking graph.
+```{r Best In Class }
+best_in_class <- mpg %>% 
+  group_by(class) %>% 
+  filter(row_number(desc(hwy)) == 1)
+
+best_in_class
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_text(aes(label = model), data = best_in_class)
+
+```
+
+Tidying the above graph by nudging the label away form the plot point.
+```{r Nudge Best in Class}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) + 
+  geom_label(aes(label = model), data = best_in_class,
+             nudge_y = 2, alpha = 0.5)
+
+```
+
+The nudge graph didn't quite answer the questions, so we utilise the geom_label_repel which is part of the ggrepel package. This pushes the label away from the point to make it easier to interpret. Adittionally, in this case we are adding a circle around the best in class points such that they are distinguishable and the labels are linked with the ggrepel function. Something important to note with this ggplot is that calls like this with multiple layers will be layered in order of ranking in code. That is, those called last will be on top, this may explain why data may be underneath other points when there is crowding.
+
+```{r GGREPEL Best in Class}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_point(size = 3, shape = 1, data = best_in_class) +
+  geom_label_repel(aes(label = model), data = best_in_class)
+```
+
+For communication purposes its the best to avoid legends. This can be done with relative ease as shown below with theme(legend.position = "none"). This instead labels the colours by putting them inside the graph.
+```{r Removing legends}
+class_avg <- mpg %>% 
+  group_by(class) %>% 
+  summarise(
+    displ = median(displ),
+    hwy = median(hwy))
+
+class_avg
+
+ggplot(mpg, aes(displ, hwy, colour = class)) +
+  geom_label_repel(aes(label = class),
+                   data = class_avg,
+                   size = 6,
+                   label.size = NA,
+                   segment.colour = NA) +
+  geom_point() +
+  theme(legend.position = "none")
+```
+
+### Single label
+You can introduce a single label to a graph, but it still requires a data frame. Recalling that '\n' sends to new line for text. 
+```{r sending text to corners}
+label_df <- mpg %>% 
+  summarise(displ = max(displ),
+            hwy = max(hwy),
+            label = "Increasing engine size is \nrelated to decreasing fuel economy")
+label_df
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  geom_text(aes(label = label), data = label_df, vjust = "top", hjust = "right")
+  
+
+```
+
+
+You can put labels in many places on the graph by sending them to the infinite bounds of the plot.
+```{r infinite bound plot title}
+label <- tibble(
+  displ = Inf,
+  hwy = Inf,
+  label = "Increasing engine size is \nrelated to decreasing fuel economy."
+```
+
+But wait theres more!
+You can also send labels about the shop with stringr!
+```{r the generalised work flow of new lines}
+"Increasing engine size is related to decresing fuel economy" %>% 
+  stringr::str_wrap(width = 40) %>% 
+  writeLines()
+```
+This method is the best work flow method because it doesn't rely on a manual addition of a \n to dictate where the new line should begin. This function will do its itself - useful for repeated iterations/recycling code.  
+
+Another useful package is ggmisc for putting equations (i.e. regression line on a plot), pvalues, etc.
+
+When using the label arguments hjust/vjust there are 9 main commands for for their combinations (L,R, Centre, Top, Bot, Centre). They also have numerical representations. These dictate the location of your label.
+
+The ggplot cheatsheet shows the many ways one can manipulate a plot. Including specific horizontal/vertical/ab lines, or a region highlight etc etc.
+
+### Exercises 28.3.1
+#### 1.
+Between the previous example of infinitely bound plot titles and ?geom_text() we can place plot labels in the extreme corners.
+
+#### 2.
+```{r ?annotate}
+?annotate
+```
+This shows that annotate can label data without things inside the data i.e. column headers, instead allowing external vectors i.e. text to be used as labels. However, when hard coding numbers into annotations it can prevent the general form of the graph from being repeated.
+
+Finish for the day 1.30/3.25
+
